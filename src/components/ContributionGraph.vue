@@ -1,112 +1,186 @@
 <template>
   <div class="graph-container">
-    <div class="textWeekGroup">
-        <div class="textWeek">Dom</div>
-        <div class="textWeek">Seg</div>
-        <div class="textWeek">Ter</div>
-        <div class="textWeek">Qua</div>
-        <div class="textWeek">Qui</div>
-        <div class="textWeek">Sex</div>
-        <div class="textWeek">Sab</div>
+    <div class="month-container" v-for="(month, index) in months" :key="index">
+      <h4>{{ month.name }}</h4>
+      <div class="weekdays">
+        <span v-for="(day, i) in daysOfWeek" :key="i" class="weekday">
+          {{ day }}
+        </span>
+      </div>
+      <svg :width="totalWidth" :height="totalHeight">
+        <g v-for="(week, weekIndex) in month.weeks" :key="weekIndex">
+          <rect
+            v-for="(day, dayIndex) in week"
+            :key="dayIndex"
+            class="day"
+            :width="cellSize"
+            :height="cellSize"
+            :x="dayIndex * daySize"
+            :y="weekIndex * daySize"
+            :fill="day ? day.color : 'rgba(255, 255, 255, 0)'"
+          />
+        </g>
+      </svg>
     </div>
-    <svg :width="totalWidth" :height="totalHeight">
-      <g v-for="(week, weekIndex) in weeks" :key="weekIndex" :transform="`translate(${weekIndex * daySize}, 0)`">
-        <rect
-          v-for="(day, dayIndex) in week"
-          :key="dayIndex"
-          class="day"
-          :width="cellSize"
-          :height="cellSize"
-          :y="dayIndex * daySize"
-          :fill="day === null ? emptyColor : day ? completedColor : notCompletedColor"
-        />
-      </g>
-    </svg>
   </div>
 </template>
 
 <script>
+import { ref, computed } from "vue";
+import dayjs from "dayjs";
+
 export default {
   name: "ContributionGraph",
-  data() {
-    return {
-      daysInYear: 90,
-      cellSize: 12, // Tamanho de cada célula
-      daySize: 18, // Tamanho total com espaçamento
-      completedColor: "#4CAF50", // Verde para tarefa realizada
-      notCompletedColor: "#FF5252", // Vermelho para tarefa não realizada
-      emptyColor: "#ebedf0", // Cor de dias em branco no início
+  setup() {
+
+
+    const dailyStatus = {
+      octuber: ["success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail",],
+      november: ["fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success","fail","success",],
+      dezember: ["fail","fail","fail","fail","fail","fail","fail","fail","fail","success","success","success","success","success","success","success","success","success","success","success","success","success","success","success",],
     };
-  },
-  computed: {
-    weeks() {
-      const weeks = [];
-      let dayCount = 0;
-      const totalWeeks = Math.ceil(this.daysInYear / 7);
-      const firstDayOfYear = this.getFirstDay();
-      
-      for (let week = 0; week < totalWeeks; week++) {
-        const weekDays = [];
-        for (let day = 0; day < 7; day++) {
-          if (week === 0 && day < firstDayOfYear) {
-            weekDays.push(null); // Dias vazios no início
-          } else if (dayCount <= this.daysInYear) {
-            weekDays.push(this.isTaskCompleted()); // Preenche os dias com valores de tarefa
-            dayCount++;
+
+    const cellSize = 12;
+    const daySize = 20;
+
+    const today = ref(dayjs()); // Data atual
+    const endDate = dayjs('2025-01-30'); // Data Final
+    const daysOfWeek = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+    // Calcular a diferença em meses entre today e endDate
+    const numberOfMonths = computed(() => {
+      return endDate.diff(today.value, 'month') + 1; // Adiciona 1 para incluir o mês do endDate
+    });
+
+    // Criar meses (a partir do mês atual)
+    const months = computed(() => {
+      const monthDataArray = [];
+
+      // Loop para os próximos meses
+      for (let i = 0; i < numberOfMonths.value; i++) {
+        const month = today.value.add(i, 'month').startOf("month"); // Mês atual ou próximo
+        const daysInMonth = month.daysInMonth();
+
+        const monthData = {
+          name: month.format("MMMM YYYY"),
+          weeks: [],
+        };
+
+        let week = new Array(7).fill(null);
+        const firstDayOfWeek = month.day();
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dayIndex = (firstDayOfWeek + day - 1) % 7;
+
+          // Adiciona uma nova semana se for domingo e já há dias na semana
+          if (dayIndex === 0 && week.some((d) => d !== null)) {
+            monthData.weeks.push(week);
+            week = new Array(7).fill(null);
+          }
+
+          // Definir a cor dos dias
+          if (day === 1) {
+            week[dayIndex] = { color: "white" }; // Cor especial para o primeiro dia do mês
+          } else if (day === daysInMonth) {
+            week[dayIndex] = { color: "pink" }; // Cor especial para o último dia do mês
+          } else if (month.isSame(today.value, 'month') && day === today.value.date()) {
+            week[dayIndex] = { color: "green" }; // Dia atual
+          } else if (day === endDate.date() && month.isSame(endDate, 'month')) {
+            week[dayIndex] = { color: "purple" }; // Cor especial para o dia do endDate
+          } else if (month.isSame(today.value, 'month') && day < today.value.date()) {
+            week[dayIndex] = { color: "white" }; // Dia passado
           } else {
-            weekDays.push(null); // Dias extras vazios no final
+            week[dayIndex] = { color: "#FFFFFF" }; // Cor padrão para dias não válidos
           }
         }
-        weeks.push(weekDays);
-      }
-      return weeks;
-    },
-    totalWidth() {
-      return this.weeks.length * this.daySize;
-    },
-    totalHeight() {
-      return 7 * this.daySize;
-    },
-  },
-  methods: {
-    // Retorna o dia da semana do primeiro dia do ano (0 = domingo, 1 = segunda, etc.)
-    getFirstDay() {
-      const today = new Date();
-      const firstDay = new Date(today.getFullYear(), 0, 1);
-      console.log('testando::::');
-      console.log(firstDay);
-      
-        console.log('aaaaaa');
-        console.log(today.getDay());
-        console.log(firstDay.getDay());
-        
-        
 
-      return firstDay.getDay();
-    },
-    // Simula uma tarefa concluída ou não (1 = concluída, 0 = não concluída)
-    isTaskCompleted() {
-      return Math.random() > 0.5 ? 1 : 0;
-    },
+        // Adiciona a última semana se não estiver vazia
+        if (week.some((d) => d !== null)) {
+          monthData.weeks.push(week);
+        }
+
+        monthDataArray.push(monthData); // Adiciona os dados do mês ao array
+      }
+
+      // Adiciona mês de janeiro se necessário
+      const january = today.value.add(numberOfMonths.value, 'month').startOf("month");
+      const januaryDaysInMonth = january.daysInMonth();
+      const januaryData = {
+        name: january.format("MMMM YYYY"),
+        weeks: [],
+      };
+
+      let januaryWeek = new Array(7).fill(null);
+      const januaryFirstDayOfWeek = january.day();
+
+      for (let day = 1; day <= januaryDaysInMonth; day++) {
+        const dayIndex = (januaryFirstDayOfWeek + day - 1) % 7;
+
+        // Adiciona uma nova semana se for domingo e já há dias na semana
+        if (dayIndex === 0 && januaryWeek.some((d) => d !== null)) {
+          januaryData.weeks.push(januaryWeek);
+          januaryWeek = new Array(7).fill(null);
+        }
+
+        // Definir a cor dos dias em janeiro
+        if (day === 1) {
+          januaryWeek[dayIndex] = { color: "white" }; // Cor especial para o primeiro dia do mês
+        } else if (day === januaryDaysInMonth) {
+          januaryWeek[dayIndex] = { color: "white" }; // Cor especial para o último dia do mês
+        } else if (day === endDate.date() && january.isSame(endDate, 'month')) {
+          januaryWeek[dayIndex] = { color: "purple" }; // Cor especial para o dia do endDate
+        } else {
+          januaryWeek[dayIndex] = { color: "white" }; // Cor padrão para dias não válidos
+        }
+      }
+
+      // Adiciona a última semana de janeiro se não estiver vazia
+      if (januaryWeek.some((d) => d !== null)) {
+        januaryData.weeks.push(januaryWeek);
+      }
+
+      monthDataArray.push(januaryData); // Adiciona os dados do mês de janeiro ao array
+
+      return monthDataArray; // Retorna os meses gerados
+    });
+
+    const totalWidth = computed(() => 7 * daySize);
+    const totalHeight = computed(() => months.value.length * (daySize * Math.max(...months.value.map(month => month.weeks.length))) || daySize);
+
+    return {
+      cellSize,
+      daySize,
+      daysOfWeek,
+      months,
+      totalWidth,
+      totalHeight,
+    };
   },
 };
 </script>
 
 <style>
-.textWeek {
-    font-size: 15px;
-}
-
-.textWeekGroup {
-    margin-right: 10px;
-}
-
 .graph-container {
   display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
   justify-content: center;
-  padding: 20px;
+}
+.month-container {
+  margin-bottom: 20px;
+  text-align: center;
+}
+.weekdays {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.weekday {
+  width: 18px; /* Espaçamento para cada dia */
+  text-align: center;
 }
 .day {
-  rx: 2; /* Borda arredondada para as células */
+  rx: 2;
 }
 </style>

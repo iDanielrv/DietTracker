@@ -4,7 +4,33 @@ import dayjs from "dayjs";
 import { Calendar, Edit } from "@element-plus/icons-vue";
 import ContributionGraph from "../components/ContributionGraph.vue";
 
-const value2 = ref(dayjs("2024-11-15 00:00"));
+const value2 = ref(dayjs("2025-01-30 00:00"));
+
+
+// Data atual
+const currentDate = dayjs();
+
+// Data final
+const endDate = dayjs('2025-01-20');
+
+// Obter a diferença em meses
+const differenceInMonths = endDate.diff(currentDate, 'month');
+
+// Listar os meses entre a data atual e a data final
+const monthsList = [];
+for (let i = 0; i <= differenceInMonths; i++) {
+  const monthName = currentDate.add(i, 'month').format('MMMM YYYY');
+  monthsList.push(monthName);
+}
+
+// Adiciona o mês de janeiro de 2025
+if (endDate.month() === 0 && endDate.year() > currentDate.year()) {
+  monthsList.push(endDate.format('MMMM YYYY'));
+}
+
+console.log(`Número de meses: ${differenceInMonths + 1}`); // +1 para incluir o mês atual
+console.log('Meses:', monthsList);
+
 
 </script>
 
